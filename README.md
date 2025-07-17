@@ -2,6 +2,9 @@
 
 A collaborative storytelling web app where users take turns writing story segments in Indian languages, starting with Telugu.
 
+> 🚧 Work in Progress: This project is being actively developed as part of Summer of Code 2025 at VISWAM.AI by the AI Developers Intern Team.
+Expect frequent updates, feature rollouts, and experimental features as we build towards a fully collaborative, multilingual storytelling experience.
+
 ---
 
 ## 🧠 Idea
