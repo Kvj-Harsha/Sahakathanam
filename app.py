@@ -14,10 +14,9 @@ def load_stories():
         with open(STORY_FILE, "r", encoding="utf-8") as f:
             try:
                 data = json.load(f)
-                if isinstance(data, dict):
-                    return data
+                return data if isinstance(data, dict) else {}
             except json.JSONDecodeError:
-                pass
+                return {}
     return {}
 
 # Save stories to file
@@ -25,17 +24,25 @@ def save_stories(stories):
     with open(STORY_FILE, "w", encoding="utf-8") as f:
         json.dump(stories, f, indent=2, ensure_ascii=False)
 
+# Format timestamp
+def format_timestamp(iso_str):
+    try:
+        return datetime.fromisoformat(iso_str).strftime("%d %b %Y, %I:%M %p")
+    except Exception:
+        return iso_str
+
 # Initialize session state
 if "stories" not in st.session_state:
     st.session_state.stories = load_stories()
 
+# Set page layout
 st.set_page_config(page_title="Sahakathanam", layout="wide")
 st.sidebar.title("📖 సహకథనం (Sahakathanam)")
 st.sidebar.markdown("A Collaborative Storytelling Platform")
 
 # Sidebar inputs
 language = st.sidebar.selectbox("Language", ["Telugu", "Hindi", "Kannada", "Tamil", "Malayalam"])
-username = st.sidebar.text_input("Your Name", value="anon")
+username = st.sidebar.text_input("Your Name", value="anon", max_chars=30)
 
 # Suggested story titles
 hot_titles = {
@@ -43,68 +50,94 @@ hot_titles = {
     "Hindi": ["रामायण कथा", "तेनालीराम की कहानी", "अकबर-बीरबल"]
 }
 
-st.title("Collaborative Storytelling in Indian Languages")
+st.title("🌱 Collaborative Storytelling in Indian Languages")
 
 # Tabs for Create and Continue
-tab1, tab2 = st.tabs(["Start a New Story", "Continue Existing Story"])
+tab1, tab2 = st.tabs(["🆕 Start a New Story", "✍️ Continue Existing Story"])
 
+# ---------------- Tab 1 ----------------
 with tab1:
     st.subheader("Start a New Story")
 
     if language in hot_titles:
-        st.markdown("Suggested Titles:")
+        st.markdown("**Suggested Titles:**")
         for t in hot_titles[language]:
             st.markdown(f"- {t}")
 
-    title = st.text_input("Story Title")
-    initial_text = st.text_area("Opening Lines (2-3 sentences)", max_chars=500)
+    title = st.text_input("Story Title", max_chars=100, key="new_title")
+    initial_text = st.text_area("Opening Lines (2-3 sentences)", max_chars=500, height=150, key="initial_text")
 
-    if st.button("Submit New Story"):
-        if title and initial_text:
+    if st.button("🚀 Submit New Story"):
+        existing_titles = [
+            v["title"].strip().lower()
+            for v in st.session_state.stories.values()
+            if v.get("language") == language
+        ]
+
+        if not title or not initial_text:
+            st.warning("Please provide both a title and the initial text.")
+        elif title.strip().lower() in existing_titles:
+            st.warning("A story with this title already exists in the selected language.")
+        else:
             story_id = str(uuid.uuid4())
             st.session_state.stories[story_id] = {
-                "title": title,
+                "title": title.strip(),
                 "language": language,
                 "segments": [
                     {
-                        "text": initial_text,
+                        "text": initial_text.strip(),
                         "timestamp": datetime.now().isoformat(),
-                        "user": username,
-                        "coords": [17.3850, 78.4867]  # Sample location
+                        "user": username.strip(),
+                        "coords": [17.3850, 78.4867]  # Sample location (Hyderabad)
                     }
                 ]
             }
             save_stories(st.session_state.stories)
-            st.success("Story created successfully.")
-        else:
-            st.warning("Please provide both a title and the initial text.")
+            st.success("✅ Story created successfully!")
 
+# ---------------- Tab 2 ----------------
 with tab2:
     st.subheader("Continue a Story")
+
     stories = st.session_state.stories
-    options = {v["title"]: k for k, v in stories.items() if v.get("language") == language}
-    selected_title = st.selectbox("Choose a story to continue", ["--"] + list(options.keys()))
+    filtered_stories = {v["title"]: k for k, v in stories.items() if v.get("language") == language}
+    selected_title = st.selectbox("Choose a story to continue", ["--"] + list(filtered_stories.keys()))
 
     if selected_title != "--":
-        story_id = options[selected_title]
+        story_id = filtered_stories[selected_title]
         selected_story = stories[story_id]
-        last_segment = selected_story["segments"][-1]["text"]
-        st.markdown("Last Segment:")
-        st.write(last_segment)
+        segments = selected_story["segments"]
 
-        new_segment = st.text_area("Your Continuation", max_chars=500)
+        # Show full story with metadata
+        with st.expander("📖 Show Full Story"):
+            for i, segment in enumerate(segments):
+                st.markdown(f"**Part {i+1}** — *{segment['user']}* ({format_timestamp(segment['timestamp'])})")
+                st.write(segment["text"])
 
-        if st.button("Submit Segment"):
-            if new_segment:
-                selected_story["segments"].append({
-                    "text": new_segment,
+        # Show last segment
+        last = segments[-1]
+        st.markdown(f"**Last Segment by {last['user']} ({format_timestamp(last['timestamp'])})**")
+        st.write(last["text"])
+
+        # Add continuation
+        new_segment = st.text_area("Your Continuation", max_chars=500, height=150, key="new_segment")
+
+        if st.button("➕ Submit Segment"):
+            if new_segment.strip():
+                segments.append({
+                    "text": new_segment.strip(),
                     "timestamp": datetime.now().isoformat(),
-                    "user": username,
-                    "coords": [17.3850, 78.4867]  # Sample location
+                    "user": username.strip(),
+                    "coords": [17.3850, 78.4867]  # Static for now
                 })
                 save_stories(stories)
-                st.success("Segment added.")
+                st.success("✅ Segment added successfully.")
             else:
                 st.warning("Please write something before submitting.")
+
+        # Download option
+        full_story_text = "\n\n".join([seg["text"] for seg in segments])
+        st.download_button("📥 Download Story as Text", full_story_text, file_name=f"{selected_title}.txt")
+
     else:
-        st.info("Start a new story or select one to continue.")
+        st.info("Select a story to continue or start a new one above.")
