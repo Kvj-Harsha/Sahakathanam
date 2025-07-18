@@ -3,6 +3,7 @@ import json
 import os
 import uuid
 from datetime import datetime
+from utils.helpers import generate_metadata, format_timestamp
 
 # Constants
 STORY_FILE = "storage/stories.json"
@@ -24,18 +25,11 @@ def save_stories(stories):
     with open(STORY_FILE, "w", encoding="utf-8") as f:
         json.dump(stories, f, indent=2, ensure_ascii=False)
 
-# Format timestamp
-def format_timestamp(iso_str):
-    try:
-        return datetime.fromisoformat(iso_str).strftime("%d %b %Y, %I:%M %p")
-    except Exception:
-        return iso_str
-
 # Initialize session state
 if "stories" not in st.session_state:
     st.session_state.stories = load_stories()
 
-# Set page layout
+# UI Setup
 st.set_page_config(page_title="Sahakathanam", layout="wide")
 st.sidebar.title("📖 సహకథనం (Sahakathanam)")
 st.sidebar.markdown("A Collaborative Storytelling Platform")
@@ -44,18 +38,16 @@ st.sidebar.markdown("A Collaborative Storytelling Platform")
 language = st.sidebar.selectbox("Language", ["Telugu", "Hindi", "Kannada", "Tamil", "Malayalam"])
 username = st.sidebar.text_input("Your Name", value="anon", max_chars=30)
 
-# Suggested story titles
+# Suggested titles per language
 hot_titles = {
     "Telugu": ["రామాయణ కథ", "తెనాలి రామకృష్ణ కథ", "బిర్బల్ కథలు"],
     "Hindi": ["रामायण कथा", "तेनालीराम की कहानी", "अकबर-बीरबल"]
 }
 
 st.title("🌱 Collaborative Storytelling in Indian Languages")
-
-# Tabs for Create and Continue
 tab1, tab2 = st.tabs(["🆕 Start a New Story", "✍️ Continue Existing Story"])
 
-# ---------------- Tab 1 ----------------
+# ------------------- Tab 1 -------------------
 with tab1:
     st.subheader("Start a New Story")
 
@@ -88,14 +80,15 @@ with tab1:
                         "text": initial_text.strip(),
                         "timestamp": datetime.now().isoformat(),
                         "user": username.strip(),
-                        "coords": [17.3850, 78.4867]  # Sample location (Hyderabad)
+                        "coords": [17.3850, 78.4867],
+                        "metadata": generate_metadata(initial_text.strip())
                     }
                 ]
             }
             save_stories(st.session_state.stories)
             st.success("✅ Story created successfully!")
 
-# ---------------- Tab 2 ----------------
+# ------------------- Tab 2 -------------------
 with tab2:
     st.subheader("Continue a Story")
 
@@ -108,18 +101,20 @@ with tab2:
         selected_story = stories[story_id]
         segments = selected_story["segments"]
 
-        # Show full story with metadata
         with st.expander("📖 Show Full Story"):
             for i, segment in enumerate(segments):
                 st.markdown(f"**Part {i+1}** — *{segment['user']}* ({format_timestamp(segment['timestamp'])})")
                 st.write(segment["text"])
+                meta = segment.get("metadata", {})
+                st.caption(
+                    f"🈯 Language: {meta.get('language', '-')}, 🧠 Type: {meta.get('type', '-')}, "
+                    f"📝 Words: {meta.get('word_count', 0)}, 📏 Chars: {meta.get('char_count', 0)}"
+                )
 
-        # Show last segment
         last = segments[-1]
         st.markdown(f"**Last Segment by {last['user']} ({format_timestamp(last['timestamp'])})**")
         st.write(last["text"])
 
-        # Add continuation
         new_segment = st.text_area("Your Continuation", max_chars=500, height=150, key="new_segment")
 
         if st.button("➕ Submit Segment"):
@@ -128,14 +123,15 @@ with tab2:
                     "text": new_segment.strip(),
                     "timestamp": datetime.now().isoformat(),
                     "user": username.strip(),
-                    "coords": [17.3850, 78.4867]  # Static for now
+                    "coords": [17.3850, 78.4867],
+                    "metadata": generate_metadata(new_segment.strip())
                 })
                 save_stories(stories)
                 st.success("✅ Segment added successfully.")
             else:
                 st.warning("Please write something before submitting.")
 
-        # Download option
+        # Download
         full_story_text = "\n\n".join([seg["text"] for seg in segments])
         st.download_button("📥 Download Story as Text", full_story_text, file_name=f"{selected_title}.txt")
 
