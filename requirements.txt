@@ -1,3 +1,4 @@
 streamlit
 uuid
 langdetect
+requests

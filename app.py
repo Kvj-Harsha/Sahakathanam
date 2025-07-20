@@ -4,6 +4,7 @@ import os
 import uuid
 from datetime import datetime
 from utils.helpers import generate_metadata, format_timestamp
+from utils.ai_utils import suggest_next_line  # AI Integration
 
 # Constants
 STORY_FILE = "storage/stories.json"
@@ -115,6 +116,19 @@ with tab2:
         st.markdown(f"**Last Segment by {last['user']} ({format_timestamp(last['timestamp'])})**")
         st.write(last["text"])
 
+        # AI Suggestion Block
+        if st.button("✨ AI Suggestion (Indic-Gemma)"):
+            with st.spinner("Generating AI suggestion..."):
+                context = "\n".join([seg["text"] for seg in segments])[-1000:]
+                ai_suggestion = suggest_next_line(context, language=language)
+                st.session_state["ai_suggestion"] = ai_suggestion
+
+        if "ai_suggestion" in st.session_state:
+            st.info(f"**AI Suggestion:** {st.session_state['ai_suggestion']}")
+            if st.button("⬇️ Use This Suggestion"):
+                st.session_state["new_segment"] = st.session_state["ai_suggestion"]
+
+        # User continuation input
         new_segment = st.text_area("Your Continuation", max_chars=500, height=150, key="new_segment")
 
         if st.button("➕ Submit Segment"):
@@ -128,10 +142,11 @@ with tab2:
                 })
                 save_stories(stories)
                 st.success("✅ Segment added successfully.")
+                st.session_state.pop("ai_suggestion", None)
             else:
                 st.warning("Please write something before submitting.")
 
-        # Download
+        # Download story
         full_story_text = "\n\n".join([seg["text"] for seg in segments])
         st.download_button("📥 Download Story as Text", full_story_text, file_name=f"{selected_title}.txt")
 

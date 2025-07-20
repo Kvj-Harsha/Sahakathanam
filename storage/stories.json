@@ -136,5 +136,26 @@
         }
       }
     ]
+  },
+  "1167cc21-08ac-4dac-a409-a6331e6fa382": {
+    "title": "బిర్బల్",
+    "language": "Telugu",
+    "segments": [
+      {
+        "text": "బిర్బల్బిర్బల్బిర్బల్",
+        "timestamp": "2025-07-20T23:19:50.341921",
+        "user": "callmekvj",
+        "coords": [
+          17.385,
+          78.4867
+        ],
+        "metadata": {
+          "language": "te",
+          "type": "narrative",
+          "word_count": 1,
+          "char_count": 21
+        }
+      }
+    ]
   }
 }
